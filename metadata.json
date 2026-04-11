@@ -1,0 +1,5 @@
+{
+  "name": "FuelresQ",
+  "description": "15-Minute Emergency Roadside Fuel Delivery Platform",
+  "requestFramePermissions": ["geolocation"]
+}
