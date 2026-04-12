@@ -1,15 +1,16 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  MapPin, 
-  Fuel, 
-  Navigation, 
-  Clock, 
-  Shield, 
-  User, 
-  Settings, 
-  Bell, 
-  CreditCard, 
+import { QRCodeSVG } from 'qrcode.react';
+import {
+  MapPin,
+  Fuel,
+  Navigation,
+  Clock,
+  Shield,
+  User,
+  Settings,
+  Bell,
+  CreditCard,
   History,
   AlertCircle,
   CheckCircle2,
@@ -17,18 +18,20 @@ import {
   Phone,
   MessageSquare,
   Star,
-  Fingerprint,
-  Truck
+  Truck,
+  Smartphone,
+  Copy,
+  ExternalLink,
+  CheckCheck,
+  DollarSign,
+  Banknote,
+  IndianRupee,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { cn, FUEL_TYPES, QUANTITIES, type User as UserType, type Booking } from './lib/utils';
 import { useSocket } from './hooks/useSocket';
-import { QRCodeSVG } from 'qrcode.react';
 
-const stripeKey = (import.meta as any).env.VITE_STRIPE_PUBLIC_KEY || '';
-// const stripePromise = stripeKey ? loadStripe(stripeKey) : null;
-
-// --- Sub-components ---
+// â”€â”€â”€ Sub-components â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const Button = ({ children, className, variant = 'primary', loading = false, ...props }: any) => {
   const variants = {
@@ -36,12 +39,13 @@ const Button = ({ children, className, variant = 'primary', loading = false, ...
     secondary: 'bg-zinc-800 text-white hover:bg-zinc-700 border border-zinc-700',
     outline: 'bg-transparent border border-zinc-700 text-zinc-300 hover:bg-zinc-800',
     ghost: 'bg-transparent text-zinc-400 hover:text-white hover:bg-zinc-800',
+    success: 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-lg shadow-emerald-900/30',
   };
   return (
-    <button 
+    <button
       className={cn(
-        'relative px-6 py-3 rounded-xl font-medium transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none overflow-hidden', 
-        variants[variant as keyof typeof variants], 
+        'relative px-6 py-3 rounded-xl font-medium transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none overflow-hidden flex items-center justify-center gap-2',
+        variants[variant as keyof typeof variants],
         className
       )}
       disabled={loading}
@@ -49,14 +53,14 @@ const Button = ({ children, className, variant = 'primary', loading = false, ...
     >
       <AnimatePresence mode="wait">
         {loading ? (
-          <motion.div 
+          <motion.div
             key="loading"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="flex items-center justify-center"
+            className="flex items-center justify-center w-full"
           >
-            <motion.div 
+            <motion.div
               className="absolute bottom-0 left-0 h-1 bg-white/30"
               initial={{ width: 0 }}
               animate={{ width: '100%' }}
@@ -65,11 +69,12 @@ const Button = ({ children, className, variant = 'primary', loading = false, ...
             <span className="relative z-10">Processing...</span>
           </motion.div>
         ) : (
-          <motion.span 
+          <motion.span
             key="content"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            className="flex items-center justify-center gap-2 w-full"
           >
             {children}
           </motion.span>
@@ -81,8 +86,8 @@ const Button = ({ children, className, variant = 'primary', loading = false, ...
 
 const LiquidFuelIcon = ({ fuelType, isSelected }: { fuelType: string, isSelected: boolean }) => {
   const colors: Record<string, string> = {
-    'Super 98': '#ef4444',
-    'Special 95': '#f97316',
+    'Power Petrol': '#ef4444',
+    'Regular Petrol': '#f97316',
     'Diesel': '#71717a'
   };
 
@@ -91,7 +96,7 @@ const LiquidFuelIcon = ({ fuelType, isSelected }: { fuelType: string, isSelected
       <Fuel className={cn("w-5 h-5 relative z-10 transition-colors", isSelected ? "text-white" : "text-zinc-400")} />
       <AnimatePresence>
         {isSelected && (
-          <motion.div 
+          <motion.div
             initial={{ y: 40 }}
             animate={{ y: 0 }}
             exit={{ y: 40 }}
@@ -99,8 +104,8 @@ const LiquidFuelIcon = ({ fuelType, isSelected }: { fuelType: string, isSelected
             className="absolute inset-0 z-0"
             style={{ backgroundColor: colors[fuelType] || '#ef4444' }}
           >
-            <motion.div 
-              animate={{ 
+            <motion.div
+              animate={{
                 y: [0, -2, 0],
                 rotate: [0, 2, -2, 0]
               }}
@@ -137,22 +142,22 @@ const Odometer = ({ value }: { value: number }) => {
 
   return (
     <span className="font-mono">
-      ₹ {displayValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+      Rs. {displayValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
     </span>
   );
 };
 
 const MapPinPulse = () => (
   <div className="relative">
-    <motion.div 
+    <motion.div
       initial={{ y: -50, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ type: 'spring', bounce: 0.5 }}
     >
       <MapPin className="w-12 h-12 text-red-500 fill-red-500/20" />
     </motion.div>
-    <motion.div 
-      animate={{ 
+    <motion.div
+      animate={{
         scale: [1, 2],
         opacity: [0.5, 0]
       }}
@@ -164,10 +169,10 @@ const MapPinPulse = () => (
 
 const TruckMovement = ({ status }: { status: string }) => {
   const isArrived = status === 'completed' || status === 'arrived';
-  
+
   return (
     <div className="relative">
-      <motion.div 
+      <motion.div
         layout
         transition={{ type: 'spring', damping: 20, stiffness: 100 }}
       >
@@ -176,7 +181,7 @@ const TruckMovement = ({ status }: { status: string }) => {
       {isArrived && (
         <div className="absolute inset-0 flex items-center justify-center">
           {[1, 2, 3].map(i => (
-            <motion.div 
+            <motion.div
               key={i}
               initial={{ scale: 0.5, opacity: 0.8 }}
               animate={{ scale: 3, opacity: 0 }}
@@ -198,34 +203,8 @@ const SkeletonLoader = () => (
   </div>
 );
 
-const BiometricSuccess = () => (
-  <motion.div 
-    initial={{ scale: 0.8, opacity: 0 }}
-    animate={{ scale: 1, opacity: 1 }}
-    className="flex flex-col items-center gap-4"
-  >
-    <motion.div 
-      animate={{ 
-        rotateY: [0, 360],
-        scale: [1, 1.1, 1]
-      }}
-      transition={{ duration: 1 }}
-      className="w-20 h-20 rounded-full bg-emerald-500 flex items-center justify-center shadow-2xl shadow-emerald-500/20"
-    >
-      <motion.div
-        initial={{ pathLength: 0 }}
-        animate={{ pathLength: 1 }}
-        transition={{ duration: 0.5, delay: 0.5 }}
-      >
-        <CheckCircle2 className="w-10 h-10 text-white" />
-      </motion.div>
-    </motion.div>
-    <p className="text-emerald-500 font-bold text-xl">Payment Successful</p>
-  </motion.div>
-);
-
 const WiggleBadge = ({ count }: { count: number }) => (
-  <motion.div 
+  <motion.div
     animate={count > 0 ? {
       rotate: [0, 15, -15, 15, 0],
       scale: [1, 1.1, 1]
@@ -250,39 +229,40 @@ const Card = ({ children, className }: any) => (
 
 const AnimatedBackground = () => (
   <div className="fixed inset-0 overflow-hidden pointer-events-none -z-10 bg-black">
-    <motion.div 
-      animate={{ 
+    <motion.div
+      animate={{
         scale: [1, 1.2, 1],
         opacity: [0.1, 0.2, 0.1],
         x: [0, 50, 0],
         y: [0, 30, 0]
       }}
       transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
-      className="absolute -top-1/4 -left-1/4 w-[800px] h-[800px] bg-red-600/10 blur-[150px] rounded-full" 
+      className="absolute -top-1/4 -left-1/4 w-[800px] h-[800px] bg-red-600/10 blur-[150px] rounded-full"
     />
-    <motion.div 
-      animate={{ 
+    <motion.div
+      animate={{
         scale: [1, 1.3, 1],
         opacity: [0.05, 0.15, 0.05],
         x: [0, -40, 0],
         y: [0, -60, 0]
       }}
       transition={{ duration: 20, repeat: Infinity, ease: "easeInOut", delay: 2 }}
-      className="absolute -bottom-1/4 -right-1/4 w-[900px] h-[900px] bg-zinc-600/5 blur-[150px] rounded-full" 
+      className="absolute -bottom-1/4 -right-1/4 w-[900px] h-[900px] bg-zinc-600/5 blur-[150px] rounded-full"
     />
-    <motion.div 
-      animate={{ 
+    <motion.div
+      animate={{
         scale: [1, 1.1, 1],
         opacity: [0, 0.1, 0],
         x: [0, 100, 0],
       }}
       transition={{ duration: 25, repeat: Infinity, ease: "easeInOut", delay: 5 }}
-      className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[1000px] bg-red-500/5 blur-[180px] rounded-full" 
+      className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[1000px] bg-red-500/5 blur-[180px] rounded-full"
     />
   </div>
 );
 
-// --- Payment Sub-Components ---
+// â”€â”€â”€ Payment Sub-Components â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
 const MockCardForm = ({ amount, onPaymentSuccess }: any) => {
   const [loading, setLoading] = useState(false);
   return (
@@ -314,83 +294,427 @@ const MockCardForm = ({ amount, onPaymentSuccess }: any) => {
       </div>
       <div className="pt-2">
         <Button type="submit" className="w-full h-14" loading={loading}>
-          Pay ₹{amount.toFixed(2)}
+          Pay Rs.{(amount || 0).toFixed(2)}
         </Button>
       </div>
     </form>
-  )
-}
+  );
+};
 
-const PaymentSuccessAnimation = () => (
-  <motion.div 
-    initial={{ scale: 0.8, opacity: 0 }}
-    animate={{ scale: 1, opacity: 1 }}
-    className="flex flex-col items-center justify-center h-full gap-4 relative"
-  >
+// Google Pay-style circular loader â†’ checkmark success animation
+const PaymentSuccessAnimation = ({ onDone }: { onDone?: () => void }) => {
+  useEffect(() => {
+    // Fire confetti
+    try {
+      confetti({ particleCount: 180, spread: 70, origin: { y: 0.55 }, colors: ['#10b981', '#ffffff', '#ef4444'] });
+    } catch (_) { }
+    if (onDone) {
+      const t = setTimeout(onDone, 2800);
+      return () => clearTimeout(t);
+    }
+  }, []);
+
+  return (
     <motion.div
-      animate={{ 
-        scale: [1, 1.2, 1],
-        boxShadow: ["0 0 0px rgba(16, 185, 129, 0)", "0 0 40px rgba(16, 185, 129, 0.4)", "0 0 0px rgba(16, 185, 129, 0)"]
-      }}
-      transition={{ duration: 1, ease: 'easeInOut' }}
-      className="w-24 h-24 rounded-full bg-emerald-500 flex items-center justify-center relative z-10"
+      initial={{ scale: 0.8, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      className="flex flex-col items-center justify-center h-full gap-5 relative py-8"
     >
+      {/* Ripple rings */}
+      {[1, 2, 3].map(i => (
+        <motion.div
+          key={i}
+          initial={{ scale: 0.4, opacity: 0.6 }}
+          animate={{ scale: 3.5, opacity: 0 }}
+          transition={{ duration: 2, repeat: Infinity, delay: i * 0.5, ease: 'easeOut' }}
+          className="absolute w-20 h-20 border-2 border-emerald-500 rounded-full"
+        />
+      ))}
+
+      {/* Circle â†’ checkmark */}
       <motion.div
-        initial={{ pathLength: 0 }}
-        animate={{ pathLength: 1 }}
-        transition={{ duration: 0.5, delay: 0.2 }}
+        initial={{ scale: 0 }}
+        animate={{
+          scale: [0, 1.2, 1],
+          boxShadow: [
+            "0 0 0px rgba(16, 185, 129, 0)",
+            "0 0 60px rgba(16, 185, 129, 0.6)",
+            "0 0 30px rgba(16, 185, 129, 0.3)"
+          ]
+        }}
+        transition={{ duration: 0.8, ease: 'backOut' }}
+        className="w-24 h-24 rounded-full bg-emerald-500 flex items-center justify-center relative z-10"
       >
-        <CheckCircle2 className="w-12 h-12 text-white" />
+        <motion.div
+          initial={{ scale: 0, rotate: -45 }}
+          animate={{ scale: 1, rotate: 0 }}
+          transition={{ delay: 0.5, type: 'spring', stiffness: 400 }}
+        >
+          <CheckCheck className="w-12 h-12 text-white" />
+        </motion.div>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.9 }}
+        className="text-center space-y-1"
+      >
+        <p className="text-emerald-400 font-black text-2xl tracking-tight">Payment Successful!</p>
+        <p className="text-zinc-500 text-sm">Your rescue partner is on the way</p>
       </motion.div>
     </motion.div>
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.8 }}
-    >
-      <p className="text-emerald-500 font-bold text-2xl tracking-tight">Payment Successful</p>
-    </motion.div>
-  </motion.div>
-);
+  );
+};
 
+// COD Cash received animation
 const CashAcceptedAnimation = ({ onComplete }: any) => {
   useEffect(() => {
-    const timer = setTimeout(onComplete, 2500);
+    const timer = setTimeout(onComplete, 3000);
     return () => clearTimeout(timer);
   }, []);
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ y: 50, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
     >
-      <Card className="p-8 flex flex-col items-center bg-emerald-500/10 border-emerald-500/30">
+      <Card className="p-10 flex flex-col items-center bg-emerald-500/10 border-emerald-500/30 max-w-xs mx-4">
+        {/* Cash stack pop */}
         <motion.div
-          animate={{ y: [0, -20, 0] }}
-          transition={{ duration: 0.5, type: 'spring', bounce: 0.6 }}
+          animate={{ y: [0, -24, 0], rotate: [0, -8, 8, 0] }}
+          transition={{ duration: 0.7, type: 'spring', bounce: 0.7 }}
+          className="mb-6"
         >
-          <div className="w-20 h-20 rounded-full bg-emerald-500 flex items-center justify-center mb-4 shadow-[0_0_40px_rgba(16,185,129,0.5)]">
-            <span className="text-4xl">💵</span>
+          <div className="w-24 h-24 rounded-full bg-emerald-500 flex items-center justify-center shadow-[0_0_60px_rgba(16,185,129,0.5)]">
+            <Banknote className="w-14 h-14 text-white" />
           </div>
         </motion.div>
-        <h3 className="text-2xl font-bold text-emerald-400">Cash Received</h3>
-        <p className="text-zinc-400 mt-2">Delivery Completed Successfully</p>
+
+
+        {/* Glow pulse */}
+        <motion.div
+          animate={{ boxShadow: ['0 0 0px rgba(16,185,129,0)', '0 0 80px rgba(16,185,129,0.4)', '0 0 0px rgba(16,185,129,0)'] }}
+          transition={{ duration: 1.5, repeat: Infinity }}
+          className="absolute inset-0 rounded-2xl pointer-events-none"
+        />
+
+        <motion.h3
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="text-2xl font-black text-emerald-400 text-center"
+        >
+          Cash Received
+        </motion.h3>
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.6 }}
+          className="text-zinc-400 mt-2 text-center font-medium"
+        >
+          Delivery Completed Successfully
+        </motion.p>
+
+        {/* Progress bar */}
+        <motion.div
+          className="mt-6 h-1 bg-emerald-500/30 rounded-full overflow-hidden w-full"
+        >
+          <motion.div
+            className="h-full bg-emerald-500 rounded-full"
+            initial={{ width: 0 }}
+            animate={{ width: '100%' }}
+            transition={{ duration: 3, ease: 'linear' }}
+          />
+        </motion.div>
       </Card>
     </motion.div>
   );
 };
 
-// --- Main App Component ---
+// --- UPI Payment Component ---
+
+const STATIC_UPI_ID = '6309691674@ptsbi';
+const STATIC_MERCHANT_NAME = 'Kattipalli Navaneeth';
+const STATIC_UPI_URL = `upi://pay?pa=${encodeURIComponent(STATIC_UPI_ID)}&pn=${encodeURIComponent(STATIC_MERCHANT_NAME)}&cu=INR`;
+
+// Spectacular full-screen UPI success animation
+const UpiPaymentPanel = ({
+  booking,
+  onPaymentVerified,
+}: {
+  booking: any;
+  onPaymentVerified: () => void;
+}) => {
+  const [verifying, setVerifying] = useState(false);
+  const [verified, setVerified] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [upiError, setUpiError] = useState('');
+  const [launchingApp, setLaunchingApp] = useState<string | null>(null);
+  const [utrInput, setUtrInput] = useState('');
+  const [utrRef, setUtrRef] = useState('');
+
+  const amount = booking?.total_price || booking?.total_amount || 0;
+
+  const gpayUrl = `tez://upi/pay?pa=${encodeURIComponent(STATIC_UPI_ID)}&pn=${encodeURIComponent(STATIC_MERCHANT_NAME)}&cu=INR`;
+  const phonePeUrl = `phonepe://pay?pa=${encodeURIComponent(STATIC_UPI_ID)}&pn=${encodeURIComponent(STATIC_MERCHANT_NAME)}&cu=INR`;
+  const paytmUrl = `paytmmp://pay?pa=${encodeURIComponent(STATIC_UPI_ID)}&pn=${encodeURIComponent(STATIC_MERCHANT_NAME)}&cu=INR`;
+
+  const openUpiApp = (url: string, appKey: string) => {
+    setLaunchingApp(appKey);
+    const newTab = window.open(url, '_blank');
+    if (!newTab || newTab.closed || typeof newTab.closed === 'undefined') {
+      window.location.href = url;
+    }
+    setTimeout(() => setLaunchingApp(null), 3000);
+  };
+
+  const copyUpiId = () => {
+    navigator.clipboard.writeText(STATIC_UPI_ID).catch(() => { });
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleVerifyPayment = async () => {
+    if (utrInput.trim().length < 6) {
+      setUpiError('Please enter a valid UTR / Transaction ID.');
+      return;
+    }
+    setVerifying(true);
+    setUpiError('');
+    try {
+      const res = await fetch('/api/payments/verify-upi', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bookingId: booking.id, transactionRef: utrInput.trim() }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setUtrRef(utrInput.trim());
+        setVerified(true);
+        setTimeout(onPaymentVerified, 1400);
+      } else {
+        setUpiError('Verification failed. Please try again.');
+      }
+    } catch {
+      setUpiError('Network error. Please try again.');
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const upiApps = [
+    {
+      key: 'gpay', label: 'Google Pay', url: gpayUrl,
+      icon: (<div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center shadow-lg"><span className="text-2xl font-black text-blue-600">G</span></div>),
+      activeColor: 'border-blue-500 bg-blue-500/10', hoverColor: 'hover:border-blue-500/50 hover:bg-blue-500/5',
+      labelColor: 'group-hover:text-blue-400', ringColor: 'border-blue-400',
+    },
+    {
+      key: 'phonepe', label: 'PhonePe', url: phonePeUrl,
+      icon: (<div className="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-900/40"><span className="text-white font-black text-base">Pe</span></div>),
+      activeColor: 'border-indigo-500 bg-indigo-500/10', hoverColor: 'hover:border-indigo-500/50 hover:bg-indigo-500/5',
+      labelColor: 'group-hover:text-indigo-400', ringColor: 'border-indigo-400',
+    },
+    {
+      key: 'paytm', label: 'Paytm', url: paytmUrl,
+      icon: (<div className="w-12 h-12 rounded-2xl bg-sky-500 flex items-center justify-center shadow-lg shadow-sky-900/40"><span className="text-white font-black text-sm">Pay</span></div>),
+      activeColor: 'border-sky-500 bg-sky-500/10', hoverColor: 'hover:border-sky-500/50 hover:bg-sky-500/5',
+      labelColor: 'group-hover:text-sky-400', ringColor: 'border-sky-400',
+    },
+  ];
+
+  return (
+    <div className="space-y-4">
+
+      {/* Amount to pay - user enters this in their UPI app */}
+      <div className="bg-amber-500/10 border-2 border-amber-500/40 rounded-2xl p-4 flex items-center gap-4">
+        <div className="w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center shrink-0">
+          <IndianRupee className="w-7 h-7 text-amber-400" />
+        </div>
+        <div>
+          <p className="text-xs text-amber-400/80 uppercase tracking-widest font-semibold mb-0.5">
+            Enter this amount in your UPI app
+          </p>
+          <p className="text-3xl font-black text-white">Rs. {amount.toFixed(2)}</p>
+        </div>
+      </div>
+
+      {/* Static QR Code */}
+      <div className="bg-zinc-950 border-2 border-violet-500/30 rounded-2xl p-6 flex flex-col items-center gap-4">
+        <div className="text-center space-y-1">
+          <p className="text-white font-bold text-base">Scan QR to Pay</p>
+          <p className="text-zinc-400 text-sm">Open any UPI app &rarr; Scan QR &rarr; Enter amount &rarr; Pay</p>
+        </div>
+        <div className="relative">
+          <div className="absolute -inset-2 bg-gradient-to-br from-violet-500/30 to-fuchsia-500/30 rounded-3xl blur-lg" />
+          <div className="relative bg-white p-5 rounded-2xl shadow-2xl">
+            <QRCodeSVG value={STATIC_UPI_URL} size={220} bgColor="#ffffff" fgColor="#000000" level="M" />
+          </div>
+        </div>
+        <p className="text-zinc-400 text-sm font-semibold">{STATIC_MERCHANT_NAME}</p>
+        <div className="w-full grid grid-cols-3 gap-2">
+          {[
+            { n: '1', label: 'Scan QR' },
+            { n: '2', label: 'Enter Rs. ' + amount.toFixed(2) },
+            { n: '3', label: 'Confirm & Pay' },
+          ].map(step => (
+            <div key={step.n} className="flex flex-col items-center gap-1.5 text-center">
+              <div className="w-7 h-7 rounded-full bg-violet-500/20 border border-violet-500/40 flex items-center justify-center text-violet-300 text-xs font-black">{step.n}</div>
+              <span className="text-[10px] text-zinc-500 leading-tight">{step.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* UPI ID copy */}
+      <div>
+        <p className="text-[10px] text-zinc-600 uppercase tracking-widest font-semibold mb-2">Or pay using UPI ID</p>
+        <button onClick={copyUpiId} className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-zinc-900 border border-zinc-700 hover:border-violet-500/50 rounded-xl transition-all group">
+          <span className="text-zinc-200 font-mono text-sm truncate">{STATIC_UPI_ID}</span>
+          <div className={cn('shrink-0 flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-lg transition-colors', copied ? 'bg-emerald-500/20 text-emerald-400' : 'bg-zinc-800 text-zinc-400 group-hover:bg-violet-500/20 group-hover:text-violet-300')}>
+            {copied ? <><CheckCircle2 className="w-3.5 h-3.5" /> Copied!</> : <><Copy className="w-3.5 h-3.5" /> Copy</>}
+          </div>
+        </button>
+      </div>
+
+      {/* UPI App Buttons */}
+      <div>
+        <p className="text-xs text-zinc-500 uppercase tracking-widest font-semibold mb-3">Or open UPI app directly</p>
+        <div className="grid grid-cols-3 gap-3">
+          {upiApps.map((app) => {
+            const isLaunching = launchingApp === app.key;
+            return (
+              <motion.button
+                key={app.key}
+                onClick={() => openUpiApp(app.url, app.key)}
+                whileHover={{ scale: 1.04, y: -2 }}
+                whileTap={{ scale: 0.95 }}
+                disabled={!!launchingApp}
+                className={cn('group relative flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all duration-200 overflow-hidden disabled:opacity-70', isLaunching ? app.activeColor : `bg-zinc-900 border-zinc-800 ${app.hoverColor}`)}
+              >
+                {isLaunching && (
+                  <motion.div animate={{ scale: [1, 1.5, 1], opacity: [0.7, 0, 0.7] }} transition={{ duration: 1, repeat: Infinity }} className={cn('absolute inset-0 rounded-2xl border-2', app.ringColor)} />
+                )}
+                <div className="relative">
+                  {app.icon}
+                  {isLaunching && (
+                    <motion.div animate={{ rotate: 360 }} transition={{ duration: 0.8, repeat: Infinity, ease: 'linear' }} className="absolute -inset-1.5 rounded-2xl border-2 border-t-transparent border-white/40" />
+                  )}
+                </div>
+                <span className={cn('text-[10px] font-bold uppercase tracking-wider transition-colors', isLaunching ? 'text-white' : `text-zinc-400 ${app.labelColor}`)}>
+                  {isLaunching ? 'Opening...' : app.label}
+                </span>
+              </motion.button>
+            );
+          })}
+        </div>
+        <AnimatePresence>
+          {launchingApp && (
+            <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="mt-3 flex items-center gap-2 px-4 py-2.5 bg-zinc-900 border border-zinc-700 rounded-xl">
+              <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full shrink-0" />
+              <p className="text-xs text-zinc-400">
+                Opening <span className="text-white font-semibold">{launchingApp === 'gpay' ? 'Google Pay' : launchingApp === 'phonepe' ? 'PhonePe' : 'Paytm'}</span> - enter <span className="text-amber-400 font-bold">Rs. {amount.toFixed(2)}</span> when prompted
+              </p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Any UPI app */}
+      <button onClick={() => openUpiApp(STATIC_UPI_URL, 'any')} disabled={!!launchingApp} className="w-full flex items-center justify-between px-5 py-4 bg-zinc-900 border border-zinc-800 rounded-xl hover:border-zinc-600 transition-all active:scale-95 disabled:opacity-50">
+        <div className="flex items-center gap-3">
+          <ExternalLink className="w-5 h-5 text-zinc-400" />
+          <span className="text-sm font-semibold text-zinc-300">Any Other UPI App</span>
+        </div>
+        <ChevronRight className="w-4 h-4 text-zinc-600" />
+      </button>
+
+
+      {/* UTR / Transaction ID Entry */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4 }}
+        className="space-y-3"
+      >
+        <div>
+          <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-semibold mb-1">
+            Step 2 &mdash; Confirm your payment
+          </p>
+          <p className="text-xs text-zinc-600">
+            After paying, open your UPI app &rarr; Payment History &rarr; Copy UTR / Transaction ID
+          </p>
+        </div>
+
+        {/* UTR input */}
+        <div className="relative">
+          <input
+            type="text"
+            value={utrInput}
+            onChange={e => { setUtrInput(e.target.value); setUpiError(''); }}
+            placeholder="Paste UTR / Transaction ID (e.g. 123456789012)"
+            className="w-full bg-zinc-900/80 border border-zinc-700 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 rounded-xl px-4 py-3.5 pr-11 text-white font-mono text-sm outline-none transition-all placeholder:text-zinc-600"
+          />
+          {utrInput.length >= 6 && (
+            <motion.div
+              initial={{ scale: 0 }} animate={{ scale: 1 }}
+              className="absolute right-3 top-1/2 -translate-y-1/2"
+            >
+              <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+            </motion.div>
+          )}
+        </div>
+
+        {/* Error */}
+        <AnimatePresence>
+          {upiError && (
+            <motion.p
+              initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+              className="text-red-400 text-xs font-medium flex items-center gap-1.5"
+            >
+              <AlertCircle className="w-3.5 h-3.5" /> {upiError}
+            </motion.p>
+          )}
+        </AnimatePresence>
+
+        {/* Confirm button */}
+        <Button
+          variant="success"
+          className="w-full h-14 text-base font-black tracking-wide"
+          loading={verifying}
+          disabled={utrInput.trim().length < 6}
+          onClick={handleVerifyPayment}
+        >
+          <CheckCheck className="w-5 h-5" />
+          Confirm Payment
+        </Button>
+        <p className="text-center text-[10px] text-zinc-600">
+          Enter the UTR from your UPI app to confirm
+        </p>
+      </motion.div>
+
+      {/* Payment confirmed */}
+      {verified && (
+        <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="flex items-center justify-center gap-2 py-4 rounded-xl bg-emerald-600/20 border border-emerald-600/40">
+          <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+          <span className="text-emerald-400 font-bold">Payment Verified!</span>
+        </motion.div>
+      )}
+
+    </div>
+  );
+};
+// â”€â”€â”€ Main App Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export default function App() {
   const [user, setUser] = useState<UserType | null>(null);
   const [view, setView] = useState<'landing' | 'auth' | 'user' | 'driver' | 'admin'>('landing');
   const [activeBooking, setActiveBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(false);
-  const [location, setLocation] = useState({ lat: 12.9716, lng: 77.5946 }); // Bangalore default
+  const [location, setLocation] = useState({ lat: 12.9716, lng: 77.5946 });
 
-  // Auth Actions
   const login = async (email: string, password?: string) => {
     setLoading(true);
     try {
@@ -450,23 +774,23 @@ export default function App() {
           <AuthScreen onLogin={login} onSignup={signup} loading={loading} />
         )}
         {view === 'user' && (
-          <UserApp 
-            user={user!} 
-            location={location} 
-            activeBooking={activeBooking} 
-            setActiveBooking={setActiveBooking} 
+          <UserApp
+            user={user!}
+            location={location}
+            activeBooking={activeBooking}
+            setActiveBooking={setActiveBooking}
             onLogout={() => setView('landing')}
           />
         )}
         {view === 'driver' && (
-          <RescuePartnerApp 
-            user={user!} 
+          <RescuePartnerApp
+            user={user!}
             onLogout={() => setView('landing')}
           />
         )}
         {view === 'admin' && (
-          <AdminDashboard 
-            user={user!} 
+          <AdminDashboard
+            user={user!}
             onLogout={() => setView('landing')}
           />
         )}
@@ -475,11 +799,11 @@ export default function App() {
   );
 }
 
-// --- Screens ---
+// â”€â”€â”€ Screens â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function LandingPage({ onGetStarted }: { onGetStarted: () => void }) {
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -488,21 +812,21 @@ function LandingPage({ onGetStarted }: { onGetStarted: () => void }) {
       {/* Hero Section */}
       <section className="relative h-screen flex flex-col items-center justify-center p-6 text-center">
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <motion.div 
-            animate={{ 
+          <motion.div
+            animate={{
               scale: [1, 1.2, 1],
               opacity: [0.1, 0.2, 0.1],
             }}
             transition={{ duration: 8, repeat: Infinity }}
-            className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-red-600/20 blur-[120px] rounded-full" 
+            className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-red-600/20 blur-[120px] rounded-full"
           />
-          <motion.div 
-            animate={{ 
+          <motion.div
+            animate={{
               scale: [1, 1.3, 1],
               opacity: [0.05, 0.15, 0.05],
             }}
             transition={{ duration: 10, repeat: Infinity, delay: 1 }}
-            className="absolute bottom-1/4 right-1/4 w-[600px] h-[600px] bg-zinc-600/10 blur-[120px] rounded-full" 
+            className="absolute bottom-1/4 right-1/4 w-[600px] h-[600px] bg-zinc-600/10 blur-[120px] rounded-full"
           />
         </div>
 
@@ -533,7 +857,7 @@ function LandingPage({ onGetStarted }: { onGetStarted: () => void }) {
           </div>
         </motion.div>
 
-        <motion.div 
+        <motion.div
           animate={{ y: [0, 10, 0] }}
           transition={{ duration: 2, repeat: Infinity }}
           className="absolute bottom-10 left-1/2 -translate-x-1/2 text-zinc-600"
@@ -594,7 +918,7 @@ function LandingPage({ onGetStarted }: { onGetStarted: () => void }) {
                   {fuel.id === 'special95' && "Standard high-quality petrol suitable for most modern passenger cars."}
                   {fuel.id === 'diesel' && "High-efficiency diesel for trucks, SUVs, and commercial vehicles."}
                 </p>
-                <div className="text-3xl font-black text-white">₹{fuel.price}<span className="text-sm font-normal text-zinc-500">/L</span></div>
+                <div className="text-3xl font-black text-white">Rs.{fuel.price}<span className="text-sm font-normal text-zinc-500">/L</span></div>
               </div>
             </div>
           ))}
@@ -603,7 +927,7 @@ function LandingPage({ onGetStarted }: { onGetStarted: () => void }) {
 
       {/* Footer */}
       <footer className="py-12 border-t border-white/5 text-center text-zinc-600">
-        <p>© 2026 FuelresQ India. All rights reserved.</p>
+        <p>Â© 2026 FuelresQ India. All rights reserved.</p>
       </footer>
     </motion.div>
   );
@@ -617,7 +941,7 @@ function AuthScreen({ onLogin, onSignup, loading }: { onLogin: any, onSignup: an
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [step, setStep] = useState<'email' | 'password' | 'details'>('email');
   const [error, setError] = useState('');
-  
+
   const handleNext = () => {
     setError('');
     if (email) {
@@ -651,7 +975,7 @@ function AuthScreen({ onLogin, onSignup, loading }: { onLogin: any, onSignup: an
         <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-zinc-600/5 blur-[120px] rounded-full" />
       </div>
 
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-md relative z-10"
@@ -666,13 +990,13 @@ function AuthScreen({ onLogin, onSignup, loading }: { onLogin: any, onSignup: an
 
         <Card className="space-y-6">
           <div className="flex bg-black/50 p-1 rounded-xl border border-zinc-800">
-            <button 
+            <button
               onClick={() => { setMode('login'); setStep('email'); setError(''); }}
               className={cn("flex-1 py-2 rounded-lg text-sm font-medium transition-all", mode === 'login' ? "bg-zinc-800 text-white" : "text-zinc-500")}
             >
               Login
             </button>
-            <button 
+            <button
               onClick={() => { setMode('signup'); setStep('email'); setError(''); }}
               className={cn("flex-1 py-2 rounded-lg text-sm font-medium transition-all", mode === 'signup' ? "bg-zinc-800 text-white" : "text-zinc-500")}
             >
@@ -682,7 +1006,7 @@ function AuthScreen({ onLogin, onSignup, loading }: { onLogin: any, onSignup: an
 
           <AnimatePresence mode="wait">
             {step === 'email' && (
-              <motion.div 
+              <motion.div
                 key="email"
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -691,8 +1015,8 @@ function AuthScreen({ onLogin, onSignup, loading }: { onLogin: any, onSignup: an
               >
                 <div>
                   <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Email Address</label>
-                  <input 
-                    type="email" 
+                  <input
+                    type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="name@example.com"
@@ -708,7 +1032,7 @@ function AuthScreen({ onLogin, onSignup, loading }: { onLogin: any, onSignup: an
             )}
 
             {step === 'details' && mode === 'signup' && (
-              <motion.div 
+              <motion.div
                 key="details"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -717,8 +1041,8 @@ function AuthScreen({ onLogin, onSignup, loading }: { onLogin: any, onSignup: an
               >
                 <div>
                   <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Full Name</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="John Doe"
@@ -727,7 +1051,7 @@ function AuthScreen({ onLogin, onSignup, loading }: { onLogin: any, onSignup: an
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Account Type</label>
-                  <select 
+                  <select
                     value={role}
                     onChange={(e: any) => setRole(e.target.value)}
                     className="w-full bg-black/50 border border-zinc-800 rounded-xl px-4 py-3 focus:outline-none focus:border-red-600 transition-colors appearance-none"
@@ -741,7 +1065,7 @@ function AuthScreen({ onLogin, onSignup, loading }: { onLogin: any, onSignup: an
             )}
 
             {step === 'password' && (
-              <motion.div 
+              <motion.div
                 key="password"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -750,11 +1074,11 @@ function AuthScreen({ onLogin, onSignup, loading }: { onLogin: any, onSignup: an
               >
                 <div>
                   <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Password</label>
-                  <input 
-                    type="password" 
+                  <input
+                    type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
+                    placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
                     className={cn(
                       "w-full bg-black/50 border rounded-xl px-4 py-3 focus:outline-none transition-colors",
                       error ? "border-red-600" : "border-zinc-800 focus:border-red-600"
@@ -762,9 +1086,9 @@ function AuthScreen({ onLogin, onSignup, loading }: { onLogin: any, onSignup: an
                   />
                   {error && <p className="text-red-500 text-xs mt-2 font-medium">{error}</p>}
                 </div>
-                <Button 
-                  className="w-full py-4 rounded-xl" 
-                  onClick={handleSubmit} 
+                <Button
+                  className="w-full py-4 rounded-xl"
+                  onClick={handleSubmit}
                   disabled={loading}
                 >
                   {mode === 'login' ? 'Login' : 'Create Account'}
@@ -776,7 +1100,7 @@ function AuthScreen({ onLogin, onSignup, loading }: { onLogin: any, onSignup: an
 
           <div className="relative">
             <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-zinc-800"></div></div>
-            <div className="relative flex justify-center text-xs uppercase"><span className="bg-zinc-900 px-2 text-zinc-500">Bangalore, India</span></div>
+            <div className="relative flex justify-center text-xs uppercase"><span className="bg-zinc-900 px-2 text-zinc-500">India</span></div>
           </div>
         </Card>
       </motion.div>
@@ -793,16 +1117,13 @@ function UserApp({ user, location, activeBooking, setActiveBooking, onLogout }: 
   const [plateNumber, setPlateNumber] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [upiId, setUpiId] = useState('');
-  const [upiView, setUpiView] = useState<'options' | 'qr' | 'upi_id'>('options');
   const socket = useSocket(activeBooking ? `booking_${activeBooking.id}` : undefined);
   const [driverPos, setDriverPos] = useState<any>(null);
   const [history, setHistory] = useState<any[]>([]);
   const [alerts, setAlerts] = useState<any[]>([]);
 
-  // Payment State
+  // Payment state
   const [paymentMethodSelect, setPaymentMethodSelect] = useState<'card' | 'qr' | 'cod'>('card');
-  const [qrCodeData, setQrCodeData] = useState('');
   const [paymentSuccessData, setPaymentSuccessData] = useState(false);
 
   useEffect(() => {
@@ -821,7 +1142,6 @@ function UserApp({ user, location, activeBooking, setActiveBooking, onLogout }: 
         .then(setHistory);
     }
     if (activeTab === 'alerts') {
-      // Mock alerts for now
       setAlerts([
         { id: 1, title: 'High Demand', message: 'High demand in Indiranagar. Deliveries might take slightly longer.', type: 'warning' },
         { id: 2, title: 'Safety Update', message: 'All our partners have completed their monthly safety audit.', type: 'info' }
@@ -829,27 +1149,10 @@ function UserApp({ user, location, activeBooking, setActiveBooking, onLogout }: 
     }
   }, [activeTab]);
 
-  useEffect(() => {
-    if (step === 'payment' && activeBooking) {
-      if (paymentMethodSelect === 'qr' && !qrCodeData) {
-        fetch('/api/payments/qr-generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            amount: activeBooking.total_price,
-            userId: user.id,
-            orderId: activeBooking.id
-          })
-        }).then(res => res.json()).then(data => setQrCodeData(data.qrData));
-      }
-    }
-  }, [step, paymentMethodSelect, activeBooking, qrCodeData]);
-
   const handleBooking = async () => {
     setError('');
     if (!plateNumber) {
       setError("Please enter your vehicle plate number");
-      // Form shake animation simulation
       const el = document.getElementById('plate-input');
       if (el) {
         el.classList.add('animate-shake');
@@ -859,9 +1162,8 @@ function UserApp({ user, location, activeBooking, setActiveBooking, onLogout }: 
     }
     setLoading(true);
     try {
-      // Simulate biometric processing
       await new Promise(resolve => setTimeout(resolve, 1500));
-      
+
       const bookingPayload = {
         userId: user.id,
         fuelType: selectedFuel.name,
@@ -871,50 +1173,40 @@ function UserApp({ user, location, activeBooking, setActiveBooking, onLogout }: 
         address: manualAddress || 'MG Road, Bangalore, India',
         plateNumber: plateNumber
       };
-      
-      console.log('Sending booking request:', bookingPayload);
-      
+
       const res = await fetch('/api/bookings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(bookingPayload),
       });
-      
-      console.log('Booking response status:', res.status);
-      
+
       if (!res.ok) {
-        const error = await res.json().catch(() => ({ error: 'Server error' }));
-        console.error('Booking error response:', error);
-        setError(error.error || error.message || 'Failed to create booking');
+        const errData = await res.json().catch(() => ({ error: 'Server error' }));
+        setError(errData.error || errData.message || 'Failed to create booking');
         setLoading(false);
         return;
       }
-      
+
       const data = await res.json();
-      console.log('Booking response data:', data);
-      
+
       if (!data || !data.id) {
-        setError('Invalid booking response - no booking ID received');
+        setError('Invalid booking response');
         setLoading(false);
         return;
       }
-      
-      // Add total_price field for consistency with payment component
+
       const bookingData = {
         ...data,
         total_price: data.total_amount || (selectedFuel.price * selectedQty + 49)
       };
-      
-      console.log('Setting active booking:', bookingData);
+
       setLoading(false);
       setActiveBooking(bookingData);
-      
-      // After state is set, move to payment step
+
       setTimeout(() => {
         setStep('payment');
       }, 100);
     } catch (err: any) {
-      console.error('Booking error:', err);
       setError('Failed to create booking. Please try again.');
       setLoading(false);
     }
@@ -922,14 +1214,31 @@ function UserApp({ user, location, activeBooking, setActiveBooking, onLogout }: 
 
   const useCurrentLocation = () => {
     if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition((pos) => {
+      navigator.geolocation.getCurrentPosition(() => {
         setStep('home');
-      }, (err) => {
+      }, () => {
         setError('Location permission denied. Please enter manually.');
         setStep('location_choice');
       });
     }
   };
+
+  // Called after any payment method succeeds
+  const handlePaymentSuccess = useCallback(async (method: string) => {
+    setPaymentSuccessData(true);
+    try {
+      await fetch('/api/payments/status-update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: activeBooking?.id, status: 'success', method })
+      });
+    } catch { }
+  }, [activeBooking]);
+
+  const handlePaymentSuccessAnimDone = useCallback(() => {
+    setPaymentSuccessData(false);
+    setStep('tracking');
+  }, []);
 
   return (
     <div className="max-w-md mx-auto min-h-screen flex flex-col">
@@ -962,11 +1271,11 @@ function UserApp({ user, location, activeBooking, setActiveBooking, onLogout }: 
                 </div>
 
                 <div className="space-y-4">
-                  <Button className="w-full py-6 rounded-2xl flex items-center justify-center gap-3" onClick={useCurrentLocation}>
+                  <Button className="w-full py-6 rounded-2xl" onClick={useCurrentLocation}>
                     <Navigation className="w-5 h-5" />
                     Use Current Location
                   </Button>
-                  <Button variant="secondary" className="w-full py-6 rounded-2xl flex items-center justify-center gap-3" onClick={() => setStep('home')}>
+                  <Button variant="secondary" className="w-full py-6 rounded-2xl" onClick={() => setStep('home')}>
                     <Settings className="w-5 h-5" />
                     Enter Manually
                   </Button>
@@ -978,9 +1287,9 @@ function UserApp({ user, location, activeBooking, setActiveBooking, onLogout }: 
             {step === 'home' && (
               <div className="space-y-8">
                 <div className="relative h-64 rounded-3xl overflow-hidden border border-white/5">
-                  <img 
-                    src="https://picsum.photos/seed/bangalore/800/600" 
-                    className="w-full h-full object-cover opacity-50 grayscale" 
+                  <img
+                    src="https://picsum.photos/seed/bangalore/800/600"
+                    className="w-full h-full object-cover opacity-50 grayscale"
                     referrerPolicy="no-referrer"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent" />
@@ -1004,8 +1313,8 @@ function UserApp({ user, location, activeBooking, setActiveBooking, onLogout }: 
                   </Card>
                 </div>
 
-                <Button 
-                  className="w-full py-6 text-xl rounded-3xl flex items-center justify-center gap-3"
+                <Button
+                  className="w-full py-6 text-xl rounded-3xl"
                   onClick={() => setStep('select')}
                 >
                   EMERGENCY FUEL NOW
@@ -1025,7 +1334,7 @@ function UserApp({ user, location, activeBooking, setActiveBooking, onLogout }: 
                   <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-4">Select Fuel Type</label>
                   <div className="grid grid-cols-1 gap-3">
                     {FUEL_TYPES.map(fuel => (
-                      <button 
+                      <button
                         key={fuel.id}
                         onClick={() => setSelectedFuel(fuel)}
                         className={cn(
@@ -1037,7 +1346,7 @@ function UserApp({ user, location, activeBooking, setActiveBooking, onLogout }: 
                           <LiquidFuelIcon fuelType={fuel.name} isSelected={selectedFuel.id === fuel.id} />
                           <div className="text-left">
                             <p className="font-semibold">{fuel.name}</p>
-                            <p className="text-xs text-zinc-500">₹ {fuel.price}/L</p>
+                            <p className="text-xs text-zinc-500">Rs. {fuel.price}/L</p>
                           </div>
                         </div>
                         {selectedFuel.id === fuel.id && <CheckCircle2 className="w-6 h-6 text-red-600" />}
@@ -1051,7 +1360,7 @@ function UserApp({ user, location, activeBooking, setActiveBooking, onLogout }: 
                   <div className="space-y-3">
                     <div id="plate-input" className={cn("flex items-center gap-3 p-4 bg-zinc-900 border rounded-2xl transition-all", error ? "border-red-600" : "border-zinc-800")}>
                       <CreditCard className="w-5 h-5 text-zinc-400" />
-                      <input 
+                      <input
                         type="text"
                         value={plateNumber}
                         onChange={(e) => setPlateNumber(e.target.value)}
@@ -1068,7 +1377,7 @@ function UserApp({ user, location, activeBooking, setActiveBooking, onLogout }: 
                   <div className="space-y-3">
                     <div className="flex items-center gap-3 p-4 bg-zinc-900 border border-zinc-800 rounded-2xl">
                       <MapPin className="w-5 h-5 text-red-500" />
-                      <input 
+                      <input
                         type="text"
                         value={manualAddress}
                         onChange={(e) => setManualAddress(e.target.value)}
@@ -1084,7 +1393,7 @@ function UserApp({ user, location, activeBooking, setActiveBooking, onLogout }: 
                   <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-4">Quantity (Liters)</label>
                   <div className="grid grid-cols-4 gap-3 mb-4">
                     {QUANTITIES.map(qty => (
-                      <button 
+                      <button
                         key={qty}
                         onClick={() => setSelectedQty(qty)}
                         className={cn(
@@ -1098,7 +1407,7 @@ function UserApp({ user, location, activeBooking, setActiveBooking, onLogout }: 
                   </div>
                   <div className="flex items-center gap-3 p-4 bg-zinc-900 border border-zinc-800 rounded-2xl">
                     <Fuel className="w-5 h-5 text-zinc-400" />
-                    <input 
+                    <input
                       type="number"
                       value={selectedQty}
                       onChange={(e) => setSelectedQty(parseFloat(e.target.value) || 0)}
@@ -1111,15 +1420,15 @@ function UserApp({ user, location, activeBooking, setActiveBooking, onLogout }: 
                 <div className="pt-8 border-t border-zinc-800 space-y-4">
                   <div className="flex justify-between text-zinc-400">
                     <span>Fuel Cost</span>
-                    <span>₹ {(selectedFuel.price * selectedQty).toFixed(2)}</span>
+                    <span>Rs. {(selectedFuel.price * selectedQty).toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-zinc-400">
                     <span>Emergency Fee</span>
-                    <span>₹ 49.00</span>
+                    <span>Rs. 49.00</span>
                   </div>
                   <div className="flex justify-between text-xl font-bold">
                     <span>Total</span>
-                    <span>₹ {(selectedFuel.price * selectedQty + 49).toFixed(2)}</span>
+                    <span>Rs. {(selectedFuel.price * selectedQty + 49).toFixed(2)}</span>
                   </div>
                   <Button className="w-full py-4 rounded-2xl" onClick={handleBooking} loading={loading}>
                     Confirm & Pay
@@ -1136,174 +1445,124 @@ function UserApp({ user, location, activeBooking, setActiveBooking, onLogout }: 
                 </div>
 
                 {paymentSuccessData ? (
-                  <div className="h-64">
-                    <PaymentSuccessAnimation />
+                  <div className="h-80">
+                    <PaymentSuccessAnimation onDone={handlePaymentSuccessAnimDone} />
                   </div>
                 ) : (
                   <>
+                    {/* Payment Method Tabs */}
                     <div className="flex bg-zinc-900 rounded-xl p-1 mb-6">
-                      <button 
+                      <button
                         onClick={() => setPaymentMethodSelect('card')}
-                        className={cn("flex-1 py-3 text-sm font-semibold rounded-lg transition-all", paymentMethodSelect === 'card' ? "bg-red-600 text-white" : "text-zinc-400")}
+                        className={cn("flex-1 py-3 text-sm font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5", paymentMethodSelect === 'card' ? "bg-red-600 text-white" : "text-zinc-400")}
                       >
-                        Card / Wallets
+                        <CreditCard className="w-4 h-4" /> Card
                       </button>
-                      <button 
-                        onClick={() => { setPaymentMethodSelect('qr'); setUpiView('options'); }}
-                        className={cn("flex-1 py-3 text-sm font-semibold rounded-lg transition-all", paymentMethodSelect === 'qr' ? "bg-red-600 text-white" : "text-zinc-400")}
+                      <button
+                        onClick={() => setPaymentMethodSelect('qr')}
+                        className={cn("flex-1 py-3 text-sm font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5", paymentMethodSelect === 'qr' ? "bg-red-600 text-white" : "text-zinc-400")}
                       >
-                        UPI
+                        <Smartphone className="w-4 h-4" /> UPI
                       </button>
-                      <button 
+                      <button
                         onClick={() => setPaymentMethodSelect('cod')}
-                        className={cn("flex-1 py-3 text-sm font-semibold rounded-lg transition-all", paymentMethodSelect === 'cod' ? "bg-red-600 text-white" : "text-zinc-400")}
+                        className={cn("flex-1 py-3 text-sm font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5", paymentMethodSelect === 'cod' ? "bg-red-600 text-white" : "text-zinc-400")}
                       >
-                        Cash
+                        <Banknote className="w-4 h-4" /> Cash
                       </button>
                     </div>
 
-                    <div>
+                    <AnimatePresence mode="wait">
+                      {/* â”€â”€â”€ CARD â”€â”€â”€ */}
                       {paymentMethodSelect === 'card' && (
-                        <div>
+                        <motion.div
+                          key="card"
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, x: 10 }}
+                        >
                           <Card className="p-6">
-                            <MockCardForm 
-                              amount={activeBooking.total_price}
-                              onPaymentSuccess={async () => {
-                                setPaymentSuccessData(true);
-                                try {
-                                  await fetch('/api/payments/status-update', { 
-                                    method: 'POST', 
-                                    headers: { 'Content-Type': 'application/json' }, 
-                                    body: JSON.stringify({ paymentId: null, orderId: activeBooking.id, status: 'success', method: 'card' }) 
-                                  });
-                                } catch (error) {
-                                  console.error('Payment status update failed:', error);
-                                }
-                                setTimeout(() => { 
-                                  setPaymentSuccessData(false); 
-                                  setStep('tracking'); 
-                                  try {
-                                    confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 }, colors: ['#ef4444', '#ffffff', '#000000'] });
-                                  } catch (error) {
-                                    console.error('Confetti failed:', error);
-                                  }
-                                }, 2000);
-                              }}
+                            <MockCardForm
+                              amount={activeBooking.total_price || activeBooking.total_amount}
+                              onPaymentSuccess={() => handlePaymentSuccess('card')}
                             />
                           </Card>
-                        </div>
+                        </motion.div>
                       )}
 
+                      {/* â”€â”€â”€ UPI â”€â”€â”€ */}
                       {paymentMethodSelect === 'qr' && (
-                        <div className="flex flex-col gap-4">
-                          {upiView === 'options' && (
-                            <div className="space-y-4">
-                              <p className="text-sm text-zinc-400 mb-2">Select a UPI App to pay ₹{activeBooking.total_price.toFixed(2)}</p>
-                              <a href={qrCodeData?.replace('upi://pay', 'gpay://upi/pay')} className="block">
-                                <div className="bg-zinc-800 hover:bg-zinc-700 p-4 rounded-xl flex items-center justify-between transition-colors">
-                                  <div className="flex items-center gap-3"><div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center font-bold text-white tracking-tighter">GPay</div><span className="font-semibold">Google Pay</span></div>
-                                  <ChevronRight className="w-5 h-5 text-zinc-500" />
-                                </div>
-                              </a>
-                              <a href={qrCodeData?.replace('upi://pay', 'phonepe://pay')} className="block">
-                                <div className="bg-zinc-800 hover:bg-zinc-700 p-4 rounded-xl flex items-center justify-between transition-colors">
-                                  <div className="flex items-center gap-3"><div className="w-8 h-8 bg-[#5f259f] rounded-lg flex items-center justify-center font-bold text-white tracking-widest text-[10px]">Pe</div><span className="font-semibold">PhonePe</span></div>
-                                  <ChevronRight className="w-5 h-5 text-zinc-500" />
-                                </div>
-                              </a>
-                              <a href={qrCodeData?.replace('upi://pay', 'paytmmp://pay')} className="block">
-                                <div className="bg-zinc-800 hover:bg-zinc-700 p-4 rounded-xl flex items-center justify-between transition-colors">
-                                  <div className="flex items-center gap-3"><div className="w-8 h-8 bg-[#002e6e] rounded-lg flex items-center justify-center font-bold text-[#00ba8d] text-[10px]">Paytm</div><span className="font-semibold">Paytm</span></div>
-                                  <ChevronRight className="w-5 h-5 text-zinc-500" />
-                                </div>
-                              </a>
-                              <div className="grid grid-cols-2 gap-4 mt-6">
-                                <Button variant="secondary" onClick={() => setUpiView('upi_id')}>Enter UPI ID</Button>
-                                <Button variant="secondary" onClick={() => setUpiView('qr')}>Scan QR</Button>
-                              </div>
-                            </div>
-                          )}
-
-                          {upiView === 'upi_id' && (
-                            <Card className="p-6 space-y-4">
-                              <button onClick={() => setUpiView('options')} className="text-zinc-400 text-sm flex items-center gap-1 mb-4"><ChevronRight className="w-4 h-4 rotate-180" /> Back</button>
-                              <h3 className="font-bold">Enter your UPI ID</h3>
-                              <input 
-                                type="text"
-                                placeholder="username@bank"
-                                value={upiId}
-                                onChange={e => setUpiId(e.target.value)}
-                                className="w-full bg-black border border-zinc-800 rounded-xl p-4 text-white outline-none focus:border-red-500"
-                              />
-                              <Button 
-                                className="w-full"
-                                disabled={!upiId.includes('@')}
-                                onClick={async () => {
-                                  // Simulate UPI Collect request logic directly triggering success
-                                  setPaymentSuccessData(true);
-                                  try {
-                                    await fetch('/api/payments/status-update', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ paymentId: null, orderId: activeBooking.id, status: 'success', method: 'upi_collect' }) });
-                                  } catch (error) {
-                                    console.error('Payment status update failed:', error);
-                                  }
-                                  setTimeout(() => { setPaymentSuccessData(false); setStep('tracking'); }, 2000);
-                                }}
-                              > Verify & Pay ₹{activeBooking.total_price.toFixed(2)} </Button>
-                            </Card>
-                          )}
-
-                          {upiView === 'qr' && (
-                            <div className="flex flex-col items-center justify-center gap-6">
-                              <Card className="p-8 text-center w-full">
-                                {qrCodeData ? (
-                                  <div className="flex flex-col items-center">
-                                    <QRCodeSVG value={qrCodeData} size={200} />
-                                    <p className="mt-4 text-white font-bold">Scan to pay ₹{activeBooking.total_price.toFixed(2)}</p>
-                                  </div>
-                                ) : (
-                                  <div className="w-[200px] h-[200px] flex items-center justify-center mx-auto">
-                                    <div className="w-8 h-8 border-2 border-red-500/30 border-t-red-500 rounded-full animate-spin" />
-                                  </div>
-                                )}
-                              </Card>
-                              <Button variant="ghost" onClick={() => setUpiView('options')}>Go Back</Button>
-                            </div>
-                          )}
-                        </div>
+                        <motion.div
+                          key="upi"
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, x: 10 }}
+                        >
+                          <UpiPaymentPanel
+                            booking={activeBooking}
+                            onPaymentVerified={() => handlePaymentSuccess('upi')}
+                          />
+                        </motion.div>
                       )}
 
+                      {/* â”€â”€â”€ COD â”€â”€â”€ */}
                       {paymentMethodSelect === 'cod' && (
-                        <div>
+                        <motion.div
+                          key="cod"
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, x: 10 }}
+                        >
                           <Card className="p-6 text-center space-y-6">
-                            <div className="w-20 h-20 rounded-full bg-zinc-800 flex items-center justify-center mx-auto">
-                              <span className="text-4xl text-white">💵</span>
-                            </div>
+                            {/* Animated cash icon */}
+                            <motion.div
+                              animate={{ y: [0, -8, 0] }}
+                              transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                              className="w-20 h-20 rounded-full bg-zinc-800 flex items-center justify-center mx-auto shadow-[0_0_30px_rgba(0,0,0,0.5)]"
+                            >
+                              <Banknote className="w-10 h-10 text-emerald-400" />
+                            </motion.div>
                             <div>
                               <h3 className="text-xl font-bold mb-2">Cash on Delivery</h3>
-                              <p className="text-zinc-400">Pay the driver directly when they arrive with your fuel.</p>
+                              <p className="text-zinc-400 text-sm">Pay the driver directly when they arrive with your fuel.</p>
                             </div>
-                            <div className="bg-zinc-800/50 p-4 rounded-xl border border-zinc-800">
-                              <p className="text-sm text-zinc-400 mb-1">Fuel Total</p>
-                              <p className="font-semibold">₹ {activeBooking.total_price.toFixed(2)}</p>
-                              <p className="text-xs text-red-500 mt-2 font-medium">+ ₹ 30.00 Delivery Fee</p>
+
+                            {/* Pricing */}
+                            <div className="bg-zinc-800/50 p-4 rounded-xl border border-zinc-800 space-y-2">
+                              <div className="flex justify-between text-sm">
+                                <span className="text-zinc-400">Fuel Total</span>
+                                <span className="font-semibold">Rs. {(activeBooking.total_price || activeBooking.total_amount || 0).toFixed(2)}</span>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-zinc-400">COD Service Fee</span>
+                                <span className="font-semibold text-red-400">+ Rs. 30.00</span>
+                              </div>
+                              <div className="flex justify-between font-bold border-t border-zinc-700 pt-2 mt-2">
+                                <span>Total (Pay to Driver)</span>
+                                <span>Rs. {((activeBooking.total_price || activeBooking.total_amount || 0) + 30).toFixed(2)}</span>
+                              </div>
                             </div>
-                            <Button 
-                              className="w-full h-14" 
+
+                            <Button
+                              className="w-full h-14 text-base font-black"
                               onClick={async () => {
                                 setLoading(true);
-                                const res = await fetch(`/api/bookings/${activeBooking.id}/add-cod-fee`, { method: 'POST' });
-                                const updatedBooking = await res.json();
-                                setActiveBooking(updatedBooking);
+                                try {
+                                  // Just confirm the order â€” driver collects cash later
+                                  await fetch(`/api/bookings/${activeBooking.id}/add-cod-fee`, { method: 'POST' });
+                                } catch { }
                                 setLoading(false);
                                 setStep('tracking');
                               }}
+                              loading={loading}
                             >
+                              <DollarSign className="w-5 h-5" />
                               Confirm COD Order
                             </Button>
                           </Card>
-                        </div>
+                        </motion.div>
                       )}
-                    </div>
+                    </AnimatePresence>
                   </>
                 )}
               </div>
@@ -1333,39 +1592,35 @@ function UserApp({ user, location, activeBooking, setActiveBooking, onLogout }: 
 
                 <div>
                   {loading ? (
-                    <div>
-                      <SkeletonLoader />
-                    </div>
+                    <SkeletonLoader />
                   ) : (
-                    <div>
-                      <Card className="p-5 space-y-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-4">
-                            <div className="w-14 h-14 rounded-2xl bg-zinc-800 overflow-hidden">
-                              <img src="https://i.pravatar.cc/150?u=driver" className="w-full h-full object-cover" />
-                            </div>
-                            <div>
-                              <p className="font-bold text-lg">Ahmed K.</p>
-                              <div className="flex items-center gap-1 text-zinc-500 text-sm">
-                                <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
-                                <span>4.9 (1.2k deliveries)</span>
-                              </div>
+                    <Card className="p-5 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className="w-14 h-14 rounded-2xl bg-zinc-800 overflow-hidden">
+                            <img src="https://i.pravatar.cc/150?u=driver" className="w-full h-full object-cover" />
+                          </div>
+                          <div>
+                            <p className="font-bold text-lg">Ahmed K.</p>
+                            <div className="flex items-center gap-1 text-zinc-500 text-sm">
+                              <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
+                              <span>4.9 (1.2k deliveries)</span>
                             </div>
                           </div>
-                          <div className="flex gap-2">
-                            <button className="w-12 h-12 rounded-2xl bg-zinc-800 flex items-center justify-center text-zinc-300"><Phone className="w-5 h-5" /></button>
-                            <button className="w-12 h-12 rounded-2xl bg-zinc-800 flex items-center justify-center text-zinc-300"><MessageSquare className="w-5 h-5" /></button>
-                          </div>
                         </div>
-                        
-                        <div className="pt-4 border-t border-zinc-800">
-                          <div className="flex items-center gap-3 text-zinc-400 text-sm">
-                            <div className="w-2 h-2 rounded-full bg-red-500" />
-                            <span>Driver is on the way with your {activeBooking.fuel_type}</span>
-                          </div>
+                        <div className="flex gap-2">
+                          <button className="w-12 h-12 rounded-2xl bg-zinc-800 flex items-center justify-center text-zinc-300"><Phone className="w-5 h-5" /></button>
+                          <button className="w-12 h-12 rounded-2xl bg-zinc-800 flex items-center justify-center text-zinc-300"><MessageSquare className="w-5 h-5" /></button>
                         </div>
-                      </Card>
-                    </div>
+                      </div>
+
+                      <div className="pt-4 border-t border-zinc-800">
+                        <div className="flex items-center gap-3 text-zinc-400 text-sm">
+                          <div className="w-2 h-2 rounded-full bg-red-500" />
+                          <span>Driver is on the way with your {activeBooking.fuel_type}</span>
+                        </div>
+                      </div>
+                    </Card>
                   )}
                 </div>
 
@@ -1392,8 +1647,8 @@ function UserApp({ user, location, activeBooking, setActiveBooking, onLogout }: 
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="font-bold text-red-500">₹{item.total_price}</p>
-                      <p className="text-[10px] uppercase font-bold text-emerald-500">{item.status}</p>
+                      <p className="font-bold text-red-500">Rs.{item.total_amount}</p>
+                      <p className="text-[10px] uppercase font-bold text-emerald-500">{item.payment_status}</p>
                     </div>
                   </Card>
                 ))}
@@ -1457,37 +1712,37 @@ function UserApp({ user, location, activeBooking, setActiveBooking, onLogout }: 
               <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Account Settings</label>
               <Button variant="outline" className="w-full justify-between gap-3 group">
                 <div className="flex items-center gap-3">
-                  <CreditCard className="w-4 h-4 text-zinc-400 group-hover:text-red-500 transition-colors" /> 
+                  <CreditCard className="w-4 h-4 text-zinc-400 group-hover:text-red-500 transition-colors" />
                   <span>Payment Methods</span>
                 </div>
                 <ChevronRight className="w-4 h-4 text-zinc-600" />
               </Button>
               <Button variant="outline" className="w-full justify-between gap-3 group">
                 <div className="flex items-center gap-3">
-                  <MapPin className="w-4 h-4 text-zinc-400 group-hover:text-red-500 transition-colors" /> 
+                  <MapPin className="w-4 h-4 text-zinc-400 group-hover:text-red-500 transition-colors" />
                   <span>Saved Addresses</span>
                 </div>
                 <ChevronRight className="w-4 h-4 text-zinc-600" />
               </Button>
               <Button variant="outline" className="w-full justify-between gap-3 group">
                 <div className="flex items-center gap-3">
-                  <CreditCard className="w-4 h-4 text-zinc-400 group-hover:text-red-500 transition-colors" /> 
+                  <CreditCard className="w-4 h-4 text-zinc-400 group-hover:text-red-500 transition-colors" />
                   <span>My Vehicles</span>
                 </div>
                 <ChevronRight className="w-4 h-4 text-zinc-600" />
               </Button>
-              
+
               <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mt-6 mb-2">Support & Safety</label>
               <Button variant="outline" className="w-full justify-between gap-3 group">
                 <div className="flex items-center gap-3">
-                  <Shield className="w-4 h-4 text-zinc-400 group-hover:text-emerald-500 transition-colors" /> 
+                  <Shield className="w-4 h-4 text-zinc-400 group-hover:text-emerald-500 transition-colors" />
                   <span>Safety Settings</span>
                 </div>
                 <ChevronRight className="w-4 h-4 text-zinc-600" />
               </Button>
               <Button variant="outline" className="w-full justify-between gap-3 group">
                 <div className="flex items-center gap-3">
-                  <AlertCircle className="w-4 h-4 text-zinc-400 group-hover:text-red-500 transition-colors" /> 
+                  <AlertCircle className="w-4 h-4 text-zinc-400 group-hover:text-red-500 transition-colors" />
                   <span>Help Center</span>
                 </div>
                 <ChevronRight className="w-4 h-4 text-zinc-600" />
@@ -1541,11 +1796,13 @@ function RescuePartnerApp({ user, onLogout }: any) {
 
   const handleCompleteDelivery = async () => {
     setCompleting(true);
-    await fetch('/api/payments/cod-confirm', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ orderId: activeJob.id, driverId: user.id })
-    });
+    try {
+      await fetch('/api/payments/cod-confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bookingId: activeJob.id, driverId: user.id })
+      });
+    } catch { }
     setCompleting(false);
     setShowCashAccepted(true);
   };
@@ -1561,7 +1818,7 @@ function RescuePartnerApp({ user, onLogout }: any) {
       </header>
 
       {tab === 'tasks' && (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 flex-1">
           <Card className="bg-gradient-to-br from-zinc-900 to-black border-white/5">
             <div className="flex items-center justify-between">
               <div>
@@ -1570,7 +1827,7 @@ function RescuePartnerApp({ user, onLogout }: any) {
                   {isOnline ? "Online & Ready" : "Offline"}
                 </p>
               </div>
-              <button 
+              <button
                 onClick={() => setIsOnline(!isOnline)}
                 className={cn(
                   "w-16 h-8 rounded-full relative transition-colors",
@@ -1585,7 +1842,7 @@ function RescuePartnerApp({ user, onLogout }: any) {
             </div>
           </Card>
 
-          <h2 className="text-lg font-bold mb-4">Active Rescue Task</h2>
+          <h2 className="text-lg font-bold">Active Rescue Task</h2>
           {activeJob ? (
             <Card className="border-red-600/50 bg-red-600/5">
               <div className="flex items-center justify-between mb-4">
@@ -1593,21 +1850,44 @@ function RescuePartnerApp({ user, onLogout }: any) {
                   <div className="w-10 h-10 rounded-xl bg-red-600 flex items-center justify-center"><Fuel className="w-5 h-5" /></div>
                   <div>
                     <p className="font-bold">Emergency Fuel Request</p>
-                    <p className="text-xs text-zinc-400">10L Special 95 • 2.4km away</p>
+                    <p className="text-xs text-zinc-400">10L Special 95 â€¢ 2.4km away</p>
                   </div>
                 </div>
               </div>
               <div className="space-y-3">
                 <Button className="w-full">Navigate to Location</Button>
-                <Button variant="secondary" className="w-full" loading={completing} onClick={handleCompleteDelivery}>Collect Cash & Complete</Button>
+                <Button
+                  variant="secondary"
+                  className="w-full"
+                  loading={completing}
+                  onClick={handleCompleteDelivery}
+                >
+                  <DollarSign className="w-5 h-5" />
+                  Cash Collected â€” Complete Delivery
+                </Button>
               </div>
             </Card>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-zinc-600 border-2 border-dashed border-zinc-800 rounded-3xl p-12 text-center">
+            <div className="flex-1 flex flex-col items-center justify-center text-zinc-600 border-2 border-dashed border-zinc-800 rounded-3xl p-12 text-center min-h-[240px]">
               <AlertCircle className="w-12 h-12 mb-4 opacity-20" />
-              <p>No active tasks. {isOnline ? "Waiting for requests..." : "Go online to start receiving jobs."}</p>
+              <p>{isOnline ? "Waiting for requests..." : "Go online to start receiving jobs."}</p>
             </div>
           )}
+
+          {/* Demo task for testing */}
+          {isOnline && !activeJob && (
+            <Card className="border-dashed border-zinc-700 bg-zinc-900/30">
+              <p className="text-xs text-zinc-500 uppercase font-semibold tracking-widest mb-3">Demo â€” Simulate Incoming Job</p>
+              <Button
+                variant="secondary"
+                className="w-full"
+                onClick={() => setActiveJob({ id: 'demo-order-001', status: 'assigned' })}
+              >
+                Simulate Incoming Rescue Request
+              </Button>
+            </Card>
+          )}
+
           {showCashAccepted && (
             <CashAcceptedAnimation onComplete={() => { setShowCashAccepted(false); setActiveJob(null); }} />
           )}
@@ -1619,11 +1899,11 @@ function RescuePartnerApp({ user, onLogout }: any) {
           <div className="grid grid-cols-2 gap-4">
             <Card className="p-4">
               <p className="text-zinc-500 text-xs font-bold uppercase tracking-wider mb-1">Today</p>
-              <p className="text-2xl font-bold">₹ 4,500</p>
+              <p className="text-2xl font-bold">Rs. 4,500</p>
             </Card>
             <Card className="p-4">
               <p className="text-zinc-500 text-xs font-bold uppercase tracking-wider mb-1">This Week</p>
-              <p className="text-2xl font-bold">₹ 28,400</p>
+              <p className="text-2xl font-bold">Rs. 28,400</p>
             </Card>
           </div>
           <Card className="p-0 overflow-hidden">
@@ -1635,7 +1915,7 @@ function RescuePartnerApp({ user, onLogout }: any) {
                     <p className="text-sm font-medium">Payout #921{i}</p>
                     <p className="text-xs text-zinc-500">Feb 2{i}, 2026</p>
                   </div>
-                  <p className="font-bold text-emerald-500">+₹ 8,200</p>
+                  <p className="font-bold text-emerald-500">+Rs. 8,200</p>
                 </div>
               ))}
             </div>
@@ -1677,33 +1957,33 @@ function RescuePartnerApp({ user, onLogout }: any) {
             <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Partner Settings</label>
             <Button variant="outline" className="w-full justify-between gap-3 group">
               <div className="flex items-center gap-3">
-                <Shield className="w-4 h-4 text-zinc-400 group-hover:text-emerald-500 transition-colors" /> 
+                <Shield className="w-4 h-4 text-zinc-400 group-hover:text-emerald-500 transition-colors" />
                 <span>KYC Documents</span>
               </div>
               <ChevronRight className="w-4 h-4 text-zinc-600" />
             </Button>
             <Button variant="outline" className="w-full justify-between gap-3 group">
               <div className="flex items-center gap-3">
-                <CreditCard className="w-4 h-4 text-zinc-400 group-hover:text-red-500 transition-colors" /> 
+                <CreditCard className="w-4 h-4 text-zinc-400 group-hover:text-red-500 transition-colors" />
                 <span>Bank Account</span>
               </div>
               <ChevronRight className="w-4 h-4 text-zinc-600" />
             </Button>
             <Button variant="outline" className="w-full justify-between gap-3 group">
               <div className="flex items-center gap-3">
-                <Star className="w-4 h-4 text-zinc-400 group-hover:text-yellow-500 transition-colors" /> 
+                <Star className="w-4 h-4 text-zinc-400 group-hover:text-yellow-500 transition-colors" />
                 <span>Ratings & Reviews</span>
               </div>
               <ChevronRight className="w-4 h-4 text-zinc-600" />
             </Button>
             <Button variant="outline" className="w-full justify-between gap-3 group">
               <div className="flex items-center gap-3">
-                <Clock className="w-4 h-4 text-zinc-400 group-hover:text-blue-500 transition-colors" /> 
+                <Clock className="w-4 h-4 text-zinc-400 group-hover:text-blue-500 transition-colors" />
                 <span>Working Hours</span>
               </div>
               <ChevronRight className="w-4 h-4 text-zinc-600" />
             </Button>
-            
+
             <Button variant="outline" className="w-full justify-start gap-3 mt-6 text-red-500 border-red-500/20 hover:bg-red-500/10" onClick={onLogout}>
               <Settings className="w-4 h-4" /> Logout
             </Button>
@@ -1744,7 +2024,7 @@ function AdminDashboard({ user, onLogout }: any) {
       <header className="flex items-center justify-between mb-12">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">FuelresQ Admin</h1>
-          <p className="text-zinc-500">India Operations Control Center • Bangalore</p>
+          <p className="text-zinc-500">India Operations Control Center â€¢ Bangalore</p>
         </div>
         <div className="flex items-center gap-4">
           <div className="text-right">
@@ -1758,34 +2038,34 @@ function AdminDashboard({ user, onLogout }: any) {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
         <Card className="border-l-4 border-l-red-600">
           <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest mb-2">Total Revenue</p>
-          <p className="text-3xl font-bold">₹ {stats?.totalRevenue?.toLocaleString('en-IN') || '0.00'}</p>
+          <p className="text-3xl font-bold">Rs. {stats?.totalRevenue?.toLocaleString('en-IN') || '0'}</p>
         </Card>
         <Card className="border-l-4 border-l-orange-500">
           <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest mb-2">Active Requests</p>
-          <p className="text-3xl font-bold">{stats?.activeRequests || 0}</p>
+          <p className="text-3xl font-bold">{stats?.activeBookings || 0}</p>
         </Card>
         <Card className="border-l-4 border-l-emerald-500">
           <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest mb-2">Partners Online</p>
-          <p className="text-3xl font-bold">{stats?.onlineDrivers || 0}</p>
+          <p className="text-3xl font-bold">{stats?.activeDrivers || 0}</p>
         </Card>
         <Card className="border-l-4 border-l-blue-500">
-          <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest mb-2">Avg. Delivery</p>
-          <p className="text-3xl font-bold">{stats?.avgDeliveryTime || '11.4m'}</p>
+          <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest mb-2">Total Bookings</p>
+          <p className="text-3xl font-bold">{stats?.totalBookings || 0}</p>
         </Card>
       </div>
 
       <div className="flex gap-4 mb-8 border-b border-white/5">
-        {['bookings', 'partners', 'dispatch'].map((tab: any) => (
-          <button 
-            key={tab}
-            onClick={() => setActiveTab(tab)}
+        {(['bookings', 'partners', 'dispatch'] as const).map((t) => (
+          <button
+            key={t}
+            onClick={() => setActiveTab(t)}
             className={cn(
               "pb-4 px-2 text-sm font-bold uppercase tracking-widest transition-all relative",
-              activeTab === tab ? "text-white" : "text-zinc-500 hover:text-zinc-300"
+              activeTab === t ? "text-white" : "text-zinc-500 hover:text-zinc-300"
             )}
           >
-            {tab}
-            {activeTab === tab && <motion.div layoutId="adminTab" className="absolute bottom-0 left-0 right-0 h-1 bg-red-600" />}
+            {t}
+            {activeTab === t && <motion.div layoutId="adminTab" className="absolute bottom-0 left-0 right-0 h-1 bg-red-600" />}
           </button>
         ))}
       </div>
@@ -1797,10 +2077,10 @@ function AdminDashboard({ user, onLogout }: any) {
               <table className="w-full text-left">
                 <thead>
                   <tr className="text-xs uppercase text-zinc-500 border-b border-white/5">
-                    <th className="px-6 py-4">User</th>
+                    <th className="px-6 py-4">Booking ID</th>
                     <th className="px-6 py-4">Fuel</th>
-                    <th className="px-6 py-4">Partner</th>
                     <th className="px-6 py-4">Status</th>
+                    <th className="px-6 py-4">Payment</th>
                     <th className="px-6 py-4">Total</th>
                   </tr>
                 </thead>
@@ -1808,11 +2088,9 @@ function AdminDashboard({ user, onLogout }: any) {
                   {bookings.map(b => (
                     <tr key={b.id} className="text-sm hover:bg-white/5 transition-colors">
                       <td className="px-6 py-4">
-                        <p className="font-medium">{b.user_name}</p>
-                        <p className="text-xs text-zinc-500">{b.user_email}</p>
+                        <p className="font-mono text-xs text-zinc-400">{b.id.slice(0, 8)}...</p>
                       </td>
                       <td className="px-6 py-4">{b.fuel_type} ({b.quantity}L)</td>
-                      <td className="px-6 py-4">{b.partner_name || 'Unassigned'}</td>
                       <td className="px-6 py-4">
                         <span className={cn(
                           "px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider",
@@ -1821,7 +2099,15 @@ function AdminDashboard({ user, onLogout }: any) {
                           {b.status}
                         </span>
                       </td>
-                      <td className="px-6 py-4 font-bold">₹{b.total_price}</td>
+                      <td className="px-6 py-4">
+                        <span className={cn(
+                          "px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider",
+                          b.payment_status === 'completed' ? "bg-emerald-500/20 text-emerald-500" : "bg-zinc-500/20 text-zinc-500"
+                        )}>
+                          {b.payment_status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 font-bold">Rs.{b.total_amount}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1834,17 +2120,16 @@ function AdminDashboard({ user, onLogout }: any) {
               <table className="w-full text-left">
                 <thead>
                   <tr className="text-xs uppercase text-zinc-500 border-b border-white/5">
-                    <th className="px-6 py-4">Partner Name</th>
-                    <th className="px-6 py-4">Email</th>
+                    <th className="px-6 py-4">Partner ID</th>
                     <th className="px-6 py-4">Status</th>
+                    <th className="px-6 py-4">Rating</th>
                     <th className="px-6 py-4">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
                   {partners.map(p => (
                     <tr key={p.id} className="text-sm hover:bg-white/5 transition-colors">
-                      <td className="px-6 py-4 font-medium">{p.name}</td>
-                      <td className="px-6 py-4 text-zinc-400">{p.email}</td>
+                      <td className="px-6 py-4 font-mono text-xs text-zinc-400">{p.id.slice(0, 8)}...</td>
                       <td className="px-6 py-4">
                         <span className={cn(
                           "px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider",
@@ -1853,6 +2138,7 @@ function AdminDashboard({ user, onLogout }: any) {
                           {p.status}
                         </span>
                       </td>
+                      <td className="px-6 py-4">{p.rating || '5.0'} â­</td>
                       <td className="px-6 py-4">
                         <button className="text-red-500 text-xs font-bold hover:underline">View Profile</button>
                       </td>
