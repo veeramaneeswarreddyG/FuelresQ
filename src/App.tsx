@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { QRCodeSVG } from 'qrcode.react';
 import {
@@ -26,10 +26,12 @@ import {
   DollarSign,
   Banknote,
   IndianRupee,
+  Heart,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { cn, FUEL_TYPES, QUANTITIES, type User as UserType, type Booking } from './lib/utils';
 import { useSocket } from './hooks/useSocket';
+import { LandingFooter, CompactFooter, PaymentFooter } from './components/Footer';
 
 // â”€â”€â”€ Sub-components â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -925,10 +927,7 @@ function LandingPage({ onGetStarted }: { onGetStarted: () => void }) {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="py-12 border-t border-white/5 text-center text-zinc-600">
-        <p>Â© 2026 FuelresQ India. All rights reserved.</p>
-      </footer>
+      <LandingFooter />
     </motion.div>
   );
 }
@@ -1103,6 +1102,8 @@ function AuthScreen({ onLogin, onSignup, loading }: { onLogin: any, onSignup: an
             <div className="relative flex justify-center text-xs uppercase"><span className="bg-zinc-900 px-2 text-zinc-500">India</span></div>
           </div>
         </Card>
+
+        <CompactFooter />
       </motion.div>
     </div>
   );
@@ -1625,6 +1626,10 @@ function UserApp({ user, location, activeBooking, setActiveBooking, onLogout }: 
                 </div>
 
                 <Button variant="secondary" className="w-full" onClick={() => setStep('home')}>Back to Home</Button>
+
+                <div className="mt-8 pt-6 border-t border-white/5">
+                  <PaymentFooter />
+                </div>
               </div>
             )}
           </div>
